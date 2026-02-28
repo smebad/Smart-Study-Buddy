@@ -6,6 +6,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 import tempfile
+from langchain_groq import ChatGroq
+from langchain_community.chains import RetrievalQA
 
 # Load our API key from .env file
 load_dotenv()
@@ -57,3 +59,26 @@ if uploaded_file is not None:
         )
 
     st.success("Ready! Ask me anything about your PDF below.")
+
+    # Setup Groq LLM
+    llm = ChatGroq(
+        api_key=os.getenv("GROQ_API_KEY"),
+        model_name="llama3-8b-8192",
+        temperature=0.2
+    )
+
+    # Create RAG chain
+    qa_chain = RetrievalQA.from_chain_type(
+        llm=llm,
+        chain_type="stuff",
+        retriever=vectorstore.as_retriever(search_kwargs={"k": 3})
+    )
+
+    # Question input
+    question = st.text_input("Ask a question about your PDF:")
+
+    if question:
+        with st.spinner("Thinking..."):
+            result = qa_chain.invoke({"query": question})
+            st.markdown("### Answer:")
+            st.write(result["result"])
