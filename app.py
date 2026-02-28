@@ -5,9 +5,11 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
-import tempfile
 from langchain_groq import ChatGroq
-from langchain_community.chains import RetrievalQA
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+import tempfile
 
 # Load our API key from .env file
 load_dotenv()
@@ -21,7 +23,6 @@ st.set_page_config(
 
 st.title("📚 Smart Study Buddy")
 st.subheader("Upload your notes or textbook and ask me anything!")
-
 
 # PDF Upload
 uploaded_file = st.file_uploader("Upload your PDF", type="pdf")
@@ -67,11 +68,27 @@ if uploaded_file is not None:
         temperature=0.2
     )
 
-    # Create RAG chain
-    qa_chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        chain_type="stuff",
-        retriever=vectorstore.as_retriever(search_kwargs={"k": 3})
+    # Create prompt template
+    prompt = ChatPromptTemplate.from_template("""
+    Answer the question based only on the provided context below.
+    If you don't know the answer, say "I couldn't find that in the document."
+    
+    Context: {context}
+    
+    Question: {input}
+    """)
+
+    # Create retriever from vector store
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+
+    def format_docs(docs):
+        return "\n\n".join(doc.page_content for doc in docs)
+
+    rag_chain = (
+        {"context": retriever | format_docs, "input": RunnablePassthrough()}
+        | prompt
+        | llm
+        | StrOutputParser()
     )
 
     # Question input
@@ -79,6 +96,6 @@ if uploaded_file is not None:
 
     if question:
         with st.spinner("Thinking..."):
-            result = qa_chain.invoke({"query": question})
+            answer = rag_chain.invoke(question)
             st.markdown("### Answer:")
-            st.write(result["result"])
+            st.write(answer)
