@@ -127,7 +127,8 @@ if uploaded_file and not st.session_state.pdf_processed:
         embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         st.session_state.vectorstore = Chroma.from_documents(
             documents=chunks,
-            embedding=embeddings
+            embedding=embeddings,
+            collection_name=f"pdf_{st.session_state.pdf_name}_{len(chunks)}"
         )
         st.session_state.pdf_processed = True
 
