@@ -128,7 +128,7 @@ if uploaded_file and not st.session_state.pdf_processed:
         st.session_state.vectorstore = Chroma.from_documents(
             documents=chunks,
             embedding=embeddings,
-            collection_name=f"pdf_{st.session_state.pdf_name}_{len(chunks)}"
+            collection_name=f"pdf_collection"
         )
         st.session_state.pdf_processed = True
 
